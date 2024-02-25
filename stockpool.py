@@ -1,11 +1,4 @@
-import talib as ta
-import datetime as dt
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas_datareader as web
 from tradingview_ta import TA_Handler, Exchange, Interval
-
-
 
 
 tesla = TA_Handler(

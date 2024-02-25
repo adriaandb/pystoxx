@@ -3,7 +3,7 @@ from actions import Conversion, get_stock_value
 class Wallet:
     def __init__(self, name, amt_start, stocks):
         self.name = name
-        self.amt_start = Conversion.euro_to_dollar(self,amt_start)
+        self.amt_start = Conversion.euro_to_dollar(self,amt_start)     # does this work?
         self.amt_cash = self.amt_start
         self.stocks = stocks #nested dictionaries
         self.stocks_value = 0.0
@@ -16,7 +16,7 @@ class Wallet:
         return f"{self.name.upper()}: \ncurrent amt: {self.amt_current}  start amt: {self.amt_start}  stocks: {stocksymbols} \n"
 
     def stock_add(self, stock):
-        self.stocks.append(stock)
+        self.stocks.append(stock)     # does this work on a dictionary?
 
     def stock_remove(self, stockname):
         #subtract from amount of shares and remove from list if none are left

@@ -2,7 +2,7 @@ from time import time, ctime
 from datetime import date
 from datetime import timedelta
 
-import talib as ta
+# import talib as ta
 # import pandas as pd
 # import pandas_datareader as web
 # import yfinance as yf
@@ -12,31 +12,34 @@ from email.message import EmailMessage
 import ssl
 import smtplib
 
-import stockpool as sp
-import envs
+import envs   # email variable
 
 
-#GLOBAL VARIABLES
+#(GLOBAL) VARIABLES
 cr = CurrencyRates()
+price_buy = 0.0
+price_sell = 0.0
+cash_permitted_buy = 0.0
+
 
 global summary
 summary = ''
-
+global time_now
 
 
 #CREATING DATE+TIME VARIABLES
 today = date.today()
-time = ctime(time())
+time_now = ctime(time())
 print("Today's date:", today)
-print('current time: '+ str(time))
+print('current time: '+ str(time_now))
 if today.isoweekday() == 1:
     yesterday = today - timedelta(days = 3)
 else:
     yesterday = today - timedelta(days = 1)
 yesterday_db= today -timedelta(days = 2)
 
-price_buy = 0.0
-price_sell = 0.0
+
+
 
 
 
@@ -45,7 +48,7 @@ price_sell = 0.0
 email_sender = 'adriaan.debelder@gmail.com'
 email_password = envs.EMAIL_PASS
 email_receiver = 'adriaan.debelder@gmail.com'
-subject = 'Pystoxx: onderwerp'
+subject = 'Pystoxx: percentage reached '
 body = 'hier komt de info'
 
 em = EmailMessage()
@@ -70,18 +73,21 @@ class Conversion:
         self.cash_in = cash
 
     def dollar_to_euro(self, cash):
-        rate = cr.get_rate('USD', 'EUR')
+        #rate = cr.get_rate('USD', 'EUR')
+        rate = 0.93
         return cash * rate
 
     def euro_to_dollar(self, cash):
-        rate = cr.get_rate('EUR', 'USD')
+        #rate = cr.get_rate('EUR', 'USD')
+        rate = 1.08
         return cash * rate
 
 
 
 #ANALYZE + DECIDE TO BUY/SELL and return leftover cash
-def analyze(stock, stock_amt, cash, cash_percentage , buy_permission):
+def analyze(stock, stock_amt, cash, cash_permitted_netto , buy_permission):
     stockId = stock.symbol
+    time_now = ctime(time())
     # CREATING DATAFRAME
     #data = web.DataReader(stockId, data_source="stooq", start=yesterday)
     print(stockId+'  ('+str(stock_amt)+'x in wallet)')
@@ -93,27 +99,30 @@ def analyze(stock, stock_amt, cash, cash_percentage , buy_permission):
     global price_buy
     global price_sell
     global cash_available
+    global buy_amt
+    global sell_amt
     # price_buy = data.iloc[0]['Open']
     # price_sell = data.iloc[0]['Open']
     price_buy = value
+    buy_amt = 1
     price_sell = value
-    cash_available = cash * (cash_percentage / 100)
+    sell_amt = 1
     print(f'cash amount before transaction: {round(cash,2)}')
-
     if buy_permission == -1 and stock_amt > 0:
         cash_new = cash + price_sell
-        sell(stock)
-        stock_amt+=-1
-        log(f'\ntransaction at {time}: sold {price_sell} \t worth of {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
+        sell(stock, sell_amt)
+        stock_amt += -sell_amt
+        log(f'\n transaction at {time_now}: sold {price_sell} \t worth of {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
         print(f'cash amount after transaction: {round(cash_new , 2 )}')
         return cash_new, stock_amt
 
     if 'BUY' in advice:
-        if  cash_available > price_buy and buy_permission == 1:
-            buy(stock)
-            cash_new = cash - price_buy
-            stock_amt+=1
-            log(f'\ntransaction at {time}: bought \t {price_buy} \t worth of \t {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
+        cash_permitted_buy = cash_permitted_netto - price_buy
+        if  cash_permitted_buy > price_buy and buy_permission == 1:
+            buy(stock, buy_amt)
+            cash_new = cash - (price_buy * buy_amt)
+            stock_amt += buy_amt
+            log(f'\n  transaction at {time_now}: bought \t {price_buy} \t worth of \t {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
             print(f'cash amount after transaction: {round(cash_new , 2 )}')
             return cash_new, stock_amt
         if buy_permission == 0:
@@ -123,24 +132,25 @@ def analyze(stock, stock_amt, cash, cash_percentage , buy_permission):
             return cash, stock_amt
 
     elif 'SELL' in advice and stock_amt>0 :
-        cash_new = cash + price_sell
-        sell(stock)
-        stock_amt+=-1
-        log(f'\ntransaction at {time}: sold \t {price_sell} worth of \t {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
+        cash_new = cash + (price_sell * sell_amt)
+        sell(stock, sell_amt)
+        stock_amt += -sell_amt
+        log(f'\n  transaction at {time_now}: sold \t {price_sell} \t worth of \t {stock.symbol} shares. \tleftover cash: {round(cash_new , 2 )}')
         print(f'cash amount after transaction: {round(cash_new , 2 )}')
         return cash_new, stock_amt
 
     if stock_amt == 0:
+        log(f'\n  transaction at {time_now}: None. \tleftover cash: {round(cash, 2)}')
         return  cash, stock_amt
         print('\n')
 
 
-def buy(stock):
-    print("BUY TRIGGERED")
+def buy(stock, amount):
+    print(f'BUY TRIGGERED {amount} times')
 
 
-def sell(stock):
-    print("SELL TRIGGERED")
+def sell(stock, amount):
+    print(f'SELL TRIGGERED {amount} times')
 
 
 def get_stock_value(stock):
@@ -168,6 +178,7 @@ def get_summary(wallet, cash_percentage):
     log(summary)
     return summary
 
+#VEROUDERD
 def get_stock_dataframe(stock):
     # yf.pdr_override()
     stockId = stock.symbol
