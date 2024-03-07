@@ -15,7 +15,7 @@ from wallet import Wallet
 # import wallet
 # from actions import analyze
 import actions
-
+import controller
 
 # DONE
 # schrijf een programma dat op bepaalde tijden de stockwaarden ophaalt en simuleer aankoop en verkoop van stock in een gesimuleerde portefeuille
@@ -225,11 +225,17 @@ def main():
         # global cash_percentage
         run_analysis(wallet_tech)
 
+def start_controller(wallet):
+    controller.run_window(wallet)
+    #gui with controlling options?
+    # show wallet / show stock amount and worth / show start amount vs current amount
 
-thread_main = Thread(target=main, daemon=False)
-# thread_main.start()
-# thread_main.join()
+thread_main = Thread(name='main' , target=main, daemon=False)
+thread_controller = Thread(name='controller' , target=start_controller)
+
 
 if __name__ == "__main__":
-#     main()
-    thread_main.start()
+    # thread_main.start()
+    thread_controller.start(wallet_tech)
+    # thread_main.join()
+    # thread_controller.join()
