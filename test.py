@@ -1,46 +1,52 @@
-import actions
-import stockpool
-import talib as ta
-import pandas_datareader as web
-from datetime import date
-from datetime import timedelta
+import sys
 
-import stockpool as sp
-import wallet
-from wallet import Wallet
-
-from forex_python.converter import CurrencyRates
-from time import time, ctime
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow, QTextEdit
 
 
-#CREATING DATE+TIME VARIABLES
-# today = date.today()
-# time = ctime(time())
-#
-# if today.isoweekday() == 1:
-#     yesterday = today - timedelta(days = 3)
-# else:
-#     yesterday = today - timedelta(days = 1)
-# print(yesterday)
-# data = web.DataReader('AAPL', data_source="stooq", start=yesterday)
-# print(data)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.label = QLabel("Click in this window")
+        self.setCentralWidget(self.label)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            # handle the left-button press in here
+            self.label.setText("mousePressEvent LEFT")
+
+        elif e.button() == Qt.MouseButton.MiddleButton:
+            # handle the middle-button press in here.
+            self.label.setText("mousePressEvent MIDDLE")
+
+        elif e.button() == Qt.MouseButton.RightButton:
+            # handle the right-button press in here.
+            self.label.setText("mousePressEvent RIGHT")
+
+    def mouseReleaseEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.label.setText("mouseReleaseEvent LEFT")
+
+        elif e.button() == Qt.MouseButton.MiddleButton:
+            self.label.setText("mouseReleaseEvent MIDDLE")
+
+        elif e.button() == Qt.MouseButton.RightButton:
+            self.label.setText("mouseReleaseEvent RIGHT")
+
+    def mouseDoubleClickEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.label.setText("mouseDoubleClickEvent LEFT")
+
+        elif e.button() == Qt.MouseButton.MiddleButton:
+            self.label.setText("mouseDoubleClickEvent MIDDLE")
+
+        elif e.button() == Qt.MouseButton.RightButton:
+            self.label.setText("mouseDoubleClickEvent RIGHT")
 
 
-#
-# data = actions.get_stock_dataframe(sp.tesla)
-# print('dataframe:\n'+data)
+app = QApplication(sys.argv)
 
-# tesla_openprice = sp.tesla.get_analysis().indicators["open"]
-# print("tesla open price: "+ str(tesla_openprice) + ' USD')
+window = MainWindow()
+window.show()
 
-
-email_body = 'dit is een test'
-actions.send_mail(email_body)
-
-
-# import os
-# import pandas_datareader as pdr
-# pdr.get_data_stooq()
-# df = pdr.get_data_tiingo('GOOG', api_key=os.getenv('0b1aa0a7c64f506c0607f87e78fd7f377427e2cb'))
-# df = pdr.get_data_tiingo('GOOG', '0b1aa0a7c64f506c0607f87e78fd7f377427e2cb')
-# df.head()
+app.exec()

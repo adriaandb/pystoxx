@@ -226,16 +226,16 @@ def main():
         run_analysis(wallet_tech)
 
 def start_controller(wallet):
-    controller.run_window(wallet)
+    controller.run_gui(wallet)
     #gui with controlling options?
     # show wallet / show stock amount and worth / show start amount vs current amount
 
 thread_main = Thread(name='main' , target=main, daemon=False)
-thread_controller = Thread(name='controller' , target=start_controller)
+thread_controller = Thread(name='controller' , target=start_controller(wallet_tech))
 
 
 if __name__ == "__main__":
     # thread_main.start()
-    thread_controller.start(wallet_tech)
+    thread_controller.start()
     # thread_main.join()
     # thread_controller.join()

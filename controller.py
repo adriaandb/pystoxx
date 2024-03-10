@@ -9,7 +9,19 @@ import wallet
 import sys
 
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel
+
+global wallet_current
+# wallet_current = wallet.Wallet('dummy', 0  ,None)
+
+
+def run_gui(wallet):
+    global wallet_current
+    wallet_current = wallet
+    gui = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    gui.exec()
 
 
 # Subclass QMainWindow to customize your application's main window
@@ -19,17 +31,19 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("pystoxx")
         self.setFixedSize(QSize(400, 300))
-        button = QPushButton("Press Me!")
-
+        button = QPushButton(str(wallet_current.amt_current))
+        button.setCheckable(True)
+        button.clicked.connect(self.the_button_was_clicked)
         # Set the central widget of the Window.
         self.setCentralWidget(button)
 
 
-def run_window(wallet):
+    def the_button_was_clicked(self):
+        print("the_button_was_clicked")
 
-    app = QApplication(sys.argv)
 
-    window = MainWindow()
-    window.show()
 
-    app.exec()
+
+
+
+
