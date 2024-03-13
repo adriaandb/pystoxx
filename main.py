@@ -22,8 +22,8 @@ import controller
 # kopen of verkopen volgens de suggestie van TAhandler
 # maak log van aan/verkopen
 # rapporting function die mail stuurt wanneer je moet (ver)kopen
-# cash percentage: aankoop niet doen als cash percentage gaat overschreden worden, niet enkel naar huidige situatie kijken
-# set to sell stock if cash percentage is lower than current amount
+# trade percentage: aankoop niet doen als trade percentage gaat overschreden worden, niet enkel naar huidige situatie kijken
+# set to sell stock if trade percentage is lower than current amount
 # gebruik van threads
 # installeer programma op rpi en laat nonstop draaien als backgroundprocess via threading, access via vnc/ssh/webbrowser
 
@@ -75,13 +75,13 @@ import controller
 # user defined variables
 
 initial_cash_amount = 9300  # in EUR
-global cash_percentage
-cash_percentage = 20  # % available for trading
+global trade_percentage
+trade_percentage = 20  # % available for trading
 global cash_permitted_bruto
 global cash_permitted_netto
 conversion = actions.Conversion(initial_cash_amount)
-cash_permitted_bruto = conversion.euro_to_dollar(initial_cash_amount) * (cash_percentage / 100)
-analyze_frequency = 5  # amount of seconds
+cash_permitted_bruto = conversion.euro_to_dollar(initial_cash_amount) * (trade_percentage / 100)
+analyze_frequency = 10   # amount of seconds
 email_activation = 0  # 0 or 1
 
 today = date.today()
@@ -114,34 +114,41 @@ actions.log(
 
 # CREATE WALLET INSTANCE
 wallet_tech = Wallet("wallet tech", initial_cash_amount, sp.stockpool_tech)
+wallet_tech.trade_percentage = trade_percentage
 
 
 # trigger analyze and buy/sell
 # analyse en kopen te ontkoppelen, stuur signal variabele mee
-# mogelijkheid cash percentage als kleiner in te stellen
+# mogelijkheid trade percentage als kleiner in te stellen
 # als totaal stockvalue kleiner is dan toegestaan budget moet er bijgekocht worden tot de het budget opgebruikt is. er mag ook verkocht worden
 # als totaal stockvalue groter is dan toegestaan budget mag er niet bijgekocht worden tot totaal stockvalue weer onder budget ligt. er mag tijdelijk enkel verkocht worden
 # aan te geven door buy_permission toggle
-# maar hoe loops opbouwen? en hoe tegen te gaan dat er rond de budgetlimiet telkens gekocht/verkocht wordt (door break en vraagstelling cash_percentage)
+# maar hoe loops opbouwen? en hoe tegen te gaan dat er rond de budgetlimiet telkens gekocht/verkocht wordt (door break en vraagstelling trade_percentage)
+
 def run_analysis(wallet):
     global summary
     global buy_permission
     global cash_permitted_bruto
     global cash_permitted_netto
-    global cash_percentage
+    # global trade_percentage
     global cycle
     global time_now
 
-    wallet.stocks_value = wallet.calculate_stocks_value()
-    cash_permitted_bruto = get_cash_permitted_bruto(wallet, cash_percentage)
-    cash_permitted_netto = get_cash_permitted_netto(wallet, cash_percentage)
+    # get permitted cash amounts to see if stock should be bought or sold
+    wallet.stocks_value = wallet.update_stocks_value()
+    cash_permitted_bruto = wallet.get_cash_permitted_bruto()
+    cash_permitted_netto = wallet.get_cash_permitted_netto()
     if wallet.stocks_value < cash_permitted_bruto:
+        print(f'-\n=\nGOING UP\n=\n-')
         while wallet.stocks_value < cash_permitted_bruto :
+            cash_permitted_bruto = round(wallet.get_cash_permitted_bruto(), 2)
             time_now = time.ctime(time.time())
             cycle+=1
-            cash_permitted_netto = round(get_cash_permitted_netto(wallet, cash_percentage), 2 )
+            cash_permitted_netto = round(wallet.get_cash_permitted_netto(), 2 )
             print(f'\n{cycle}---------------------------{time_now}')
-            print(f'{cash_permitted_netto=}\n')
+            # print(f'{cash_permitted_netto=} with trade percentage {wallet.trade_percentage}%')
+            # print(f'{round(wallet.stocks_value, 2)} of {cash_permitted_bruto} converted to stock.\n')
+            # make analysis for each stock in wallet
             for stock in wallet.stocks.values():
                 cash_new, stock_amt = actions.analyze(stock['handler'], stock['amount'],
                                               wallet.amt_cash,
@@ -149,19 +156,23 @@ def run_analysis(wallet):
                                               buy_permission)
                 wallet.amt_cash = cash_new
                 stock['amount'] = stock_amt
-                wallet.calculate_stocks_value()
-
+                wallet.update_stocks_value()
                 print('--------------\n')
+            cash_permitted_bruto = round(wallet.get_cash_permitted_bruto(), 2)
+            cash_permitted_netto = round(wallet.get_cash_permitted_netto(), 2 )
+            # print(f'{cash_permitted_netto=} with trade percentage {wallet.trade_percentage}%')
+            # print(f'{round(wallet.stocks_value, 2)} of {cash_permitted_bruto} converted to stock.\n')
             time.sleep(analyze_frequency)
-    # actions.log(f'\ntransactions stopped due to reach of given cash percentage ({cash_percentage}%)\n')
-    # cash_percentage = get_summary_permission(wallet, cash_percentage)
-    actions.get_summary(wallet, cash_percentage)
+    # actions.log(f'\ntransactions stopped due to reach of given trade percentage ({trade_percentage}%)\n')
+    # trade_percentage = get_summary_permission(wallet, trade_percentage)
+    actions.get_summary(wallet)
 
     # TO SELL IF TOO MUCH CASH IS SPENT
-    cash_permitted_bruto = get_cash_permitted_bruto(wallet, cash_percentage)
-    wallet.stocks_value = wallet.calculate_stocks_value()
+    cash_permitted_bruto = get_cash_permitted_bruto(wallet)
+    wallet.stocks_value = wallet.update_stocks_value()
     if wallet.stocks_value  > cash_permitted_bruto:
         buy_permission = -1
+        print(f'-\n=\nGOING DOWN\n=\n-')
         while wallet.stocks_value  > cash_permitted_bruto :
             cycle+=1
             print(f'\n{cycle}----------------------------{time_now}')
@@ -172,49 +183,55 @@ def run_analysis(wallet):
                                               buy_permission)
                 wallet.amt_cash = cash_new
                 stock['amount'] = stock_amt
-                wallet.calculate_stocks_value()
+                wallet.update_stocks_value()
                 print('--------------\n')
                 if wallet.stocks_value  < cash_permitted_bruto:
                     buy_permission = 1
                     break
             time.sleep(analyze_frequency)
-        # actions.log(f'\ntransactions stopped due to reach of given cash percentage ({cash_percentage}%)\n')
-        # cash_percentage = get_summary_permission(wallet, cash_percentage)
-        actions.get_summary(wallet, cash_percentage)
+        # actions.log(f'\ntransactions stopped due to reach of given trade percentage ({trade_percentage}%)\n')
+        # trade_percentage = get_summary_permission(wallet, trade_percentage)
+        actions.get_summary(wallet)
 
 
     # # update current total stock value
-    # wallet_tech.stocks_value = wallet_tech.calculate_stocks_value()
+    # wallet_tech.stocks_value = wallet_tech.update_stocks_value()
 
     # # print summary
-    # summary = actions.get_summary(wallet_tech, cash_percentage)
+    # summary = actions.get_summary(wallet_tech, trade_percentage)
     # print(summary)
 
-    # actions.log(f'\ntransactions stopped due to reach of given cash percentage ({cash_percentage}%)\n')
+    # actions.log(f'\ntransactions stopped due to reach of given trade percentage ({trade_percentage}%)\n')
 
 
 
+#amount of cash left over to be spent
+def get_cash_permitted_netto(wallet):
+    # cash_permitted = wallet.amt_current * (wallet.trade_percentage / 100) - wallet.stocks_value
+    # if cash_permitted > 0:
+    #     return cash_permitted
+    # else:
+    #     return 0
+    return wallet.get_cash_permitted_netto()
 
-def get_cash_permitted_netto(wallet, cash_percentage):
-    cash_permitted = wallet.amt_current * (cash_percentage / 100) - wallet.stocks_value
-    return cash_permitted
 
-def get_cash_permitted_bruto(wallet, cash_percentage):
-    cash_permitted = wallet.amt_current * (cash_percentage / 100)
-    return cash_permitted
+# total amount of cash allowed to be spent
+def get_cash_permitted_bruto(wallet):
+    # cash_permitted = wallet.amt_current * (wallet.trade_percentage / 100)
+    # return cash_permitted
+    return wallet.get_cash_permitted_bruto()
 
-
-def get_summary_permission(wallet, cash_percentage):
-    wallet.stocks_value = wallet.calculate_stocks_value()
-    summary = actions.get_summary(wallet, cash_percentage)
+def get_summary_permission(wallet):
+    wallet.stocks_value = wallet.update_stocks_value()
+    summary = actions.get_summary(wallet)
     print(summary)
     if email_activation == 1:
         actions.send_mail(summary)
         actions.log(f'\nEMAIL SENT  at {time.time()}\n\n')
-    cash_percentage = float(
-        input(f'\ncurrent cash percentage: {cash_percentage} \ndefine new cash percentage to adhere to trading: '))
-    # cash_permitted = get_cash_permitted(wallet, cash_percentage)
-    return cash_percentage
+    trade_percentage = float(
+        input(f'\ncurrent trade percentage: {wallet.trade_percentage} \ndefine new trade percentage to adhere to trading: '))
+    # cash_permitted = get_cash_permitted(wallet, trade_percentage)
+    return trade_percentage
 
 
 
@@ -222,20 +239,23 @@ def get_summary_permission(wallet, cash_percentage):
 def main():
     # global buy_permission
     while bAlive == True:
-        # global cash_percentage
+        # global trade_percentage
         run_analysis(wallet_tech)
 
 def start_controller(wallet):
     controller.run_gui(wallet)
-    #gui with controlling options?
-    # show wallet / show stock amount and worth / show start amount vs current amount
+    # show wallet / show stock amount and worth / show start amount vs current amount(=profit)
+    # show last transaction?
+    # show graph
 
-thread_main = Thread(name='main' , target=main, daemon=False)
-thread_controller = Thread(name='controller' , target=start_controller(wallet_tech))
+thread_main = Thread(name='main' , target=main)
+thread_controller = Thread(name='controller', target=start_controller, args=(wallet_tech,))
 
 
 if __name__ == "__main__":
-    # thread_main.start()
+    # main()
+    # start_controller(wallet_tech)
+    thread_main.start()
     thread_controller.start()
-    # thread_main.join()
+    # thread_main.join(timeout=1.0)
     # thread_controller.join()

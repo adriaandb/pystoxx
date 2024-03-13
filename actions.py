@@ -162,10 +162,10 @@ def get_stock_value(stock):
     # print('stock value '+stockId+': '+str(value)+' USD')
     return value
 
-def get_summary(wallet, cash_percentage):
-    summary = f'CASH PERCENTAGE REACHED of \'{wallet.name}\'\n'
+def get_summary(wallet):
+    summary = f'TRADE PERCENTAGE REACHED of \'{wallet.name}\'\n'
     summary += f'amount of cash at start: {wallet.amt_start} USD\n'
-    summary += f'percentage of cash made available for stock: {cash_percentage}%\n'
+    summary += f'percentage of cash made available for stock: {wallet.trade_percentage}%\n'
     summary += f'amount of cash in total: {round(wallet.amt_cash, 2 )} USD\n'
     summary += f'amount of stock in total: {round(wallet.stocks_value, 2 )} USD\n'
     for stock in wallet.stocks.values():
