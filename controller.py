@@ -26,7 +26,9 @@ sys.excepthook = exception_hook
 def run_gui(wallet):
     global wallet_current
     wallet_current = wallet
-    gui = QApplication(sys.argv)
+    gui = QApplication.instance()
+    if gui is None:
+        gui = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     gui.exec()
